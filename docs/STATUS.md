@@ -13,7 +13,9 @@ Build the core proof: can we resolve tickets and execute actions safely with aud
 
 ## Last Working Demo
 
-Not yet available. First demo target: end of Week 1.
+**Available now.** Full loop: Dashboard → Tickets → AI Respond → Policy Check → Action → Audit Log.
+- Dashboard: http://localhost:3100
+- Tickets: http://localhost:3100/tickets
 
 ## KPIs (will populate once pilot begins)
 
@@ -56,10 +58,19 @@ Not yet available. First demo target: end of Week 1.
 - [x] Health endpoint upgraded with DB status check
 - [x] Audit log frontend page (table, color-coded badges, filter, pagination, dual-theme)
 - [x] Sidebar audit log link active
+- [x] **Task 04:** Demo dashboard, tickets + AI resolution
+- [x] Live dashboard with real stats (open tickets, resolved today, auto-resolve rate, pending actions, activity feed)
+- [x] Tickets list page with status/priority badges, channel icons, status filter, create ticket form
+- [x] Ticket detail page with conversation thread, AI Respond, Process Action, Resolve
+- [x] Policy engine (inline) — auto-approve under $50, require approval $50-200, manual review over $200
+- [x] Active sidebar navigation with highlight
+- [x] Playground: stop button + ResolveOps system prompt
+- [x] Enriched seed data (5 tickets, 13 audit entries)
+- [x] `suppressHydrationWarning` for Dark Reader compat
 
 ## In Progress
 
-- [ ] Policy engine v1 — rules, caps, approvals (Task 04)
+- [ ] Channel integrations (email + chat widget)
 
 ## Blocked
 
@@ -86,4 +97,4 @@ Nothing currently blocked.
 
 **Due:** End of Week 2
 **Criteria:** Safe refund/reship execution with audit trails
-**Current confidence:** Medium (dependencies clear, no blockers identified)
+**Current confidence:** High (full demo loop working end-to-end)
