@@ -6,10 +6,10 @@ ResolveOps is an AI-native customer ops agency platform. It replaces a startup's
 
 ## Critical Rules
 
-1. **Dark mode only.** Every page, component, and modal must use dark backgrounds (#0B1220 base, #111A2E surface). No light mode. No white backgrounds. Ever.
+1. **Dual theme.** Every page, component, and modal must look beautiful in both dark mode (#0B1220 base, #111A2E surface) and light mode. Default to dark. Both themes must be polished.
 2. **No co-author sentence.** Git commits must NOT include "Co-authored-by" lines.
 3. **Update docs after every task.** Update STATUS.md and write a build doc to `docs/build/phase-{N}/task-{NN}-{short-name}.md` following the template.
-4. **Return git commands.** At the end of every task, output the exact git commands the developer should run in zsh. Do not run them — the developer runs them manually.
+4. **Commit and push.** At the end of every task, actually run the git commit and push. Do not just output commands — execute them.
 5. **Env hygiene.** Never hardcode secrets. Always use env variables. Validate at startup.
 6. **Port discipline.** Use the ports in docs/PORTS.md. Never use 3000, 5432, 6379, 8000, or 8080.
 
@@ -25,9 +25,21 @@ ResolveOps is an AI-native customer ops agency platform. It replaces a startup's
 
 Default to Gemini 3.1 for local development. OpenAI and Anthropic are available as alternatives. The LLM_PROVIDER env var controls which adapter is used. All three must remain functional.
 
+## End-of-Build Checklist
+
+After every task, do ALL of the following:
+1. **Test** — verify the build works (run the app, hit endpoints, check UI)
+2. **Build doc** — write to `docs/build/phase-{N}/task-{NN}-{short-name}.md`
+3. **Update STATUS.md** — mark completed items, update in-progress
+4. **Update ROADMAP.md** — mark delivered items, add any newly discussed features
+5. **Update PROMPTS.md** — if new prompts were written or missing ones found
+6. **Update docs/whatsnext/** — if new features were discussed that aren't in roadmap
+7. **Commit and push** — actually run the git commands
+8. **Summary to user** — what was built, what to observe/test (with links), what's next
+
 ## Build Doc Format
 
-After every task, write a build doc following the template in the uploaded BUILD_DOC_TEMPLATE.md. Location: `docs/build/phase-{N}/task-{NN}-{short-name}.md`
+Write a build doc following the template. Location: `docs/build/phase-{N}/task-{NN}-{short-name}.md`
 
 Required sections:
 1. Title and Metadata
@@ -39,30 +51,22 @@ Required sections:
 7. What Was NOT Built (deferred items)
 8. How to Test Manually
 
-## Git Commands (End of Every Build)
+## Auth Requirements (When Built)
 
-Always output these at the end of every task:
+- Provide test email and password for the developer
+- Persistent sessions ("remember me" — computer should remember login)
+- Show/hide password toggle on all password fields
 
-```zsh
-git status
-git add -A
-git commit -m "feat: short description of what was built"
-git push
+## Git (End of Every Build)
 
-# Then the build doc commit:
-git add docs/
-git commit -m "docs: build doc for Task N — short description"
-git push
-```
-
-Never include `--co-author` or "Co-authored-by" in any commit.
+Actually commit and push at end of every task. Never include `--co-author` or "Co-authored-by" in any commit.
 
 ## File Structure
 
 ```
 resolveops/
   apps/
-    web/          # Next.js dashboard (dark-only, port 3100)
+    web/          # Next.js dashboard (dark+light themes, port 3100)
     api/          # FastAPI (port 3101)
     worker/       # Background jobs (port 3102)
   packages/

@@ -11,10 +11,11 @@ Every phase has a **kill/pivot gate**. If metrics miss targets, we don't push fo
 **Goal:** Prove we can resolve tickets and execute actions safely with audit trails.
 
 ### Deliverables
+- ~~Project scaffold~~ **DONE (Task 01)** — Next.js + FastAPI + Worker + LLM Gateway stubs + env config
 - Connect 2 channels (email + chat widget)
 - Implement 2 write actions (refund + reship via Shopify/Stripe)
 - Policy engine v1: caps, approvals, audit log
-- Dark-mode executive dashboard with live metrics
+- Executive dashboard with live metrics (dark + light themes)
 - Shadow mode: AI drafts responses, human approves
 
 ### Success Metrics

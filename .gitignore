@@ -1,0 +1,28 @@
+# Environment
+.env.local
+.env*.local
+!.env.example
+
+# Node
+node_modules/
+.next/
+.turbo/
+dist/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+postgres_data/
+redis_data/

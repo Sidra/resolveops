@@ -1,6 +1,6 @@
 # ResolveOps — Project Status
 
-**Last updated:** 2026-03-02
+**Last updated:** 2026-03-03
 **Current phase:** Phase 0 — Prototype (Week 1)
 **Overall status:** 🟡 In Progress
 
@@ -34,14 +34,20 @@ Not yet available. First demo target: end of Week 1.
 - [x] Env hygiene strategy documented
 - [x] Roadmap with stage gates
 - [x] Build doc template integrated
+- [x] **Task 01:** Full project scaffold — Next.js dashboard, FastAPI API + worker, LLM Gateway adapter stubs, env files, .gitignore
+- [x] Next.js dark-mode dashboard scaffold (port 3100, Tailwind v4, zod env validation)
+- [x] FastAPI core + health endpoint (port 3101, pydantic-settings config)
+- [x] Worker stub with health endpoint (port 3102)
+- [x] Postgres + pgvector setup (Docker, port 5436)
+- [x] Redis setup (Docker, port 6380)
+- [x] LLM Gateway — provider adapter pattern (gemini/openai/anthropic stubs + factory)
+- [x] Policy engine + integrations package stubs
 
 ## In Progress
 
-- [ ] Next.js dark-mode dashboard scaffold
-- [ ] FastAPI core + health endpoint
-- [ ] Postgres + pgvector setup (Docker)
-- [ ] Redis setup (Docker)
-- [ ] LLM Gateway — provider adapter pattern
+- [ ] LLM Gateway — implement Gemini 3.1 adapter (Task 02+)
+- [ ] Policy engine v1 — rules, caps, approvals (Task 04)
+- [ ] Database schema + migrations
 
 ## Blocked
 
