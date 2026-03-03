@@ -48,11 +48,18 @@ Not yet available. First demo target: end of Week 1.
 - [x] Chat playground page at /playground with streaming UI
 - [x] Dual theme support (dark + light CSS variables)
 - [x] Renamed llm-gateway → llm_gateway for Python import compatibility
+- [x] **Task 03:** Database schema + migrations + audit log
+- [x] SQLAlchemy async ORM + Alembic migrations (5 tables: tickets, messages, actions, audit_log, policies)
+- [x] pgvector extension enabled
+- [x] Seed data (3 policies, 1 ticket, 4 messages, 1 action, 5 audit entries)
+- [x] Audit log API (GET/POST /audit-log with pagination + filters)
+- [x] Health endpoint upgraded with DB status check
+- [x] Audit log frontend page (table, color-coded badges, filter, pagination, dual-theme)
+- [x] Sidebar audit log link active
 
 ## In Progress
 
 - [ ] Policy engine v1 — rules, caps, approvals (Task 04)
-- [ ] Database schema + migrations
 
 ## Blocked
 

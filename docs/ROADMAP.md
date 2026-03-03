@@ -13,6 +13,7 @@ Every phase has a **kill/pivot gate**. If metrics miss targets, we don't push fo
 ### Deliverables
 - ~~Project scaffold~~ **DONE (Task 01)** — Next.js + FastAPI + Worker + LLM Gateway stubs + env config
 - ~~LLM Gateway with Gemini adapter~~ **DONE (Task 02)** — Real Gemini complete + streaming, API endpoints, chat playground
+- ~~Database schema + migrations + audit log~~ **DONE (Task 03)** — 5 tables, Alembic migrations, audit CRUD API, audit log frontend
 - Connect 2 channels (email + chat widget)
 - Implement 2 write actions (refund + reship via Shopify/Stripe)
 - Policy engine v1: caps, approvals, audit log

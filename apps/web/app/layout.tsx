@@ -41,8 +41,10 @@ export default function RootLayout({
                 <li className="rounded-md px-3 py-2 text-sm text-[var(--color-text-secondary)]">
                   Tickets
                 </li>
-                <li className="rounded-md px-3 py-2 text-sm text-[var(--color-text-secondary)]">
-                  Audit Log
+                <li>
+                  <Link href="/audit-log" className="block rounded-md px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-light)] hover:text-[var(--color-text-primary)]">
+                    Audit Log
+                  </Link>
                 </li>
                 <li className="rounded-md px-3 py-2 text-sm text-[var(--color-text-secondary)]">
                   Settings
