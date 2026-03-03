@@ -19,3 +19,8 @@ class LLMAdapter(ABC):
     def provider_name(self) -> str:
         """Return the provider identifier (e.g. 'gemini', 'openai', 'anthropic')."""
         ...
+
+    @property
+    def model_name(self) -> str:
+        """Return the model identifier. Override in subclasses."""
+        return "unknown"

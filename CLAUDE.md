@@ -70,7 +70,7 @@ resolveops/
     api/          # FastAPI (port 3101)
     worker/       # Background jobs (port 3102)
   packages/
-    llm-gateway/  # Provider adapters
+    llm_gateway/  # Provider adapters (Gemini, OpenAI, Anthropic)
     policy-engine/ # Rules, approvals, audit
     integrations/ # Channel + commerce connectors
   docs/

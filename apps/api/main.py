@@ -1,8 +1,15 @@
+import os
+import sys
+
+# Add packages/ to Python path so llm_gateway can be imported
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "packages")))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from config import settings
+from routes.llm import router as llm_router
 
 app = FastAPI(title="ResolveOps API", version="0.1.0")
 
@@ -16,6 +23,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(llm_router)
 
 
 @app.get("/health")

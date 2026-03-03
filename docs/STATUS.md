@@ -42,10 +42,15 @@ Not yet available. First demo target: end of Week 1.
 - [x] Redis setup (Docker, port 6380)
 - [x] LLM Gateway — provider adapter pattern (gemini/openai/anthropic stubs + factory)
 - [x] Policy engine + integrations package stubs
+- [x] **Task 02:** LLM Gateway with Gemini adapter — real complete + streaming, API endpoints, chat playground UI
+- [x] Gemini adapter with google-genai SDK (complete + stream)
+- [x] API endpoints: POST /llm/complete, POST /llm/stream (SSE)
+- [x] Chat playground page at /playground with streaming UI
+- [x] Dual theme support (dark + light CSS variables)
+- [x] Renamed llm-gateway → llm_gateway for Python import compatibility
 
 ## In Progress
 
-- [ ] LLM Gateway — implement Gemini 3.1 adapter (Task 02+)
 - [ ] Policy engine v1 — rules, caps, approvals (Task 04)
 - [ ] Database schema + migrations
 

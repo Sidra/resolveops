@@ -1,6 +1,22 @@
 @import "tailwindcss";
 
+/* Light theme (default in :root, active when html.light) */
 :root {
+  --color-base: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-surface-light: #F1F5F9;
+  --color-border: #E2E8F0;
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #64748B;
+  --color-accent: #3B82F6;
+  --color-accent-hover: #2563EB;
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-error: #DC2626;
+}
+
+/* Dark theme */
+.dark {
   --color-base: #0B1220;
   --color-surface: #111A2E;
   --color-surface-light: #1A2540;

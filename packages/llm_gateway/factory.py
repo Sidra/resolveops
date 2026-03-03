@@ -5,7 +5,10 @@ from .openai_adapter import OpenAIAdapter
 from .anthropic_adapter import AnthropicAdapter
 
 _ADAPTERS = {
-    "gemini": lambda: GeminiAdapter(api_key=os.environ.get("GEMINI_API_KEY", "")),
+    "gemini": lambda: GeminiAdapter(
+        api_key=os.environ.get("GEMINI_API_KEY", ""),
+        model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash"),
+    ),
     "openai": lambda: OpenAIAdapter(api_key=os.environ.get("OPENAI_API_KEY", "")),
     "anthropic": lambda: AnthropicAdapter(api_key=os.environ.get("ANTHROPIC_API_KEY", "")),
 }

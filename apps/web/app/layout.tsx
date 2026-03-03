@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,8 +28,15 @@ export default function RootLayout({
                 Navigation
               </p>
               <ul className="mt-2 space-y-1">
-                <li className="rounded-md bg-[var(--color-surface-light)] px-3 py-2 text-sm text-[var(--color-text-primary)]">
-                  Dashboard
+                <li>
+                  <Link href="/" className="block rounded-md px-3 py-2 text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-light)]">
+                    Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/playground" className="block rounded-md px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-light)] hover:text-[var(--color-text-primary)]">
+                    Playground
+                  </Link>
                 </li>
                 <li className="rounded-md px-3 py-2 text-sm text-[var(--color-text-secondary)]">
                   Tickets
