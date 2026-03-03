@@ -5,6 +5,12 @@ import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3101";
 
+interface ChannelBreakdown {
+  email: number;
+  chat: number;
+  other: number;
+}
+
 interface DashboardStats {
   open_tickets: number;
   resolved_today: number;
@@ -12,6 +18,8 @@ interface DashboardStats {
   auto_resolve_rate: number;
   pending_actions: number;
   total_actions_today: number;
+  drafts_pending: number;
+  channels: ChannelBreakdown;
 }
 
 interface AuditItem {
@@ -36,6 +44,11 @@ const EVENT_COLORS: Record<string, string> = {
   policy_check: "text-cyan-400",
   action_executed: "text-green-400",
   action_rejected: "text-red-400",
+  shadow_draft: "text-amber-400",
+  shadow_approved: "text-green-400",
+  shadow_rejected: "text-red-400",
+  shadow_edited: "text-amber-400",
+  channel_inbound: "text-blue-400",
 };
 
 function formatLabel(s: string): string {
@@ -94,7 +107,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* Stats cards */}
+      {/* Stats cards — top row */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Open Tickets"
@@ -119,6 +132,34 @@ export default function DashboardPage() {
               ? "text-[var(--color-error)]"
               : "text-[var(--color-success)]"
           }
+        />
+      </div>
+
+      {/* Second row: drafts + channels */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Drafts Pending Review"
+          value={loading ? "—" : String(stats?.drafts_pending ?? 0)}
+          color={
+            (stats?.drafts_pending ?? 0) > 0
+              ? "text-amber-400"
+              : "text-[var(--color-success)]"
+          }
+        />
+        <StatCard
+          label="Email Tickets"
+          value={loading ? "—" : String(stats?.channels?.email ?? 0)}
+          color="text-blue-400"
+        />
+        <StatCard
+          label="Chat Tickets"
+          value={loading ? "—" : String(stats?.channels?.chat ?? 0)}
+          color="text-purple-400"
+        />
+        <StatCard
+          label="Actions Today"
+          value={loading ? "—" : String(stats?.total_actions_today ?? 0)}
+          color="text-[var(--color-text-primary)]"
         />
       </div>
 
@@ -157,9 +198,9 @@ export default function DashboardPage() {
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[var(--color-text-secondary)]">Actions today</span>
-              <span className="text-sm font-medium text-[var(--color-text-primary)]">
-                {loading ? "—" : stats?.total_actions_today ?? 0}
+              <span className="text-sm text-[var(--color-text-secondary)]">Drafts pending</span>
+              <span className="text-sm font-medium text-amber-400">
+                {loading ? "—" : stats?.drafts_pending ?? 0}
               </span>
             </div>
           </div>
@@ -180,7 +221,7 @@ export default function DashboardPage() {
           </div>
           <div className="mt-4 space-y-3">
             {loading ? (
-              <p className="text-sm text-[var(--color-text-secondary)]">Loading…</p>
+              <p className="text-sm text-[var(--color-text-secondary)]">Loading...</p>
             ) : data?.recent_activity.length === 0 ? (
               <p className="text-sm text-[var(--color-text-secondary)]">No activity yet</p>
             ) : (

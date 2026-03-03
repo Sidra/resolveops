@@ -17,6 +17,7 @@ from routes.audit import router as audit_router
 from routes.dashboard import router as dashboard_router
 from routes.tickets import router as tickets_router
 from routes.demo import router as demo_router
+from routes.channels import router as channels_router
 
 
 @asynccontextmanager
@@ -51,6 +52,7 @@ app.include_router(audit_router)
 app.include_router(dashboard_router)
 app.include_router(tickets_router)
 app.include_router(demo_router)
+app.include_router(channels_router)
 
 
 @app.get("/health")

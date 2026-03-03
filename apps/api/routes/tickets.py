@@ -47,6 +47,8 @@ class MessageOut(BaseModel):
     id: str
     role: str
     content: str
+    is_draft: bool = False
+    visible_to_customer: bool = True
     created_at: str
 
 
@@ -85,7 +87,11 @@ class TicketListResponse(BaseModel):
 
 
 class AIRespondRequest(BaseModel):
-    pass  # No input needed — AI reads the conversation
+    shadow_mode: bool = True
+
+
+class ShadowApproveRequest(BaseModel):
+    edited_content: str | None = None
 
 
 class ReplyRequest(BaseModel):
@@ -175,8 +181,11 @@ async def get_ticket(ticket_id: UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{ticket_id}/respond", response_model=MessageOut)
-async def ai_respond(ticket_id: UUID, db: AsyncSession = Depends(get_db)):
-    """Have AI draft and send a response to the ticket."""
+async def ai_respond(ticket_id: UUID, req: AIRespondRequest = None, db: AsyncSession = Depends(get_db)):
+    """Have AI draft a response. Shadow mode (default) saves as draft for review."""
+    if req is None:
+        req = AIRespondRequest()
+
     import os, sys
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages")))
     from llm_gateway import create_adapter
@@ -190,9 +199,11 @@ async def ai_respond(ticket_id: UUID, db: AsyncSession = Depends(get_db)):
     if not ticket:
         raise HTTPException(404, "Ticket not found")
 
-    # Build conversation context
+    # Build conversation context (exclude drafts)
     conversation = "\n".join(
-        f"{m.role.upper()}: {m.content}" for m in sorted(ticket.messages, key=lambda m: m.created_at)
+        f"{m.role.upper()}: {m.content}"
+        for m in sorted(ticket.messages, key=lambda m: m.created_at)
+        if not m.is_draft
     )
     prompt = f"Ticket subject: {ticket.subject}\nCustomer: {ticket.customer_name or ticket.customer_email}\n\nConversation:\n{conversation}\n\nDraft a helpful response:"
 
@@ -208,18 +219,22 @@ async def ai_respond(ticket_id: UUID, db: AsyncSession = Depends(get_db)):
         logger.exception("AI respond error")
         raise HTTPException(502, f"AI error: {e}")
 
+    is_shadow = req.shadow_mode
     ai_msg = Message(
         ticket_id=ticket.id,
         role=MessageRole.ai,
         content=response_text,
+        is_draft=is_shadow,
+        visible_to_customer=not is_shadow,
     )
     db.add(ai_msg)
 
+    event_type = EventType.shadow_draft if is_shadow else EventType.ai_response
     audit = AuditLog(
-        event_type=EventType.ai_response,
+        event_type=event_type,
         actor=adapter.model_name,
         ticket_id=ticket.id,
-        description=f"AI drafted response ({len(response_text)} chars)",
+        description=f"AI {'draft' if is_shadow else 'response'} ({len(response_text)} chars)",
         result="success",
     )
     db.add(audit)
@@ -234,6 +249,8 @@ async def ai_respond(ticket_id: UUID, db: AsyncSession = Depends(get_db)):
         id=str(ai_msg.id),
         role=ai_msg.role,
         content=ai_msg.content,
+        is_draft=ai_msg.is_draft,
+        visible_to_customer=ai_msg.visible_to_customer,
         created_at=ai_msg.created_at.isoformat(),
     )
 
@@ -261,6 +278,81 @@ async def agent_reply(ticket_id: UUID, req: ReplyRequest, db: AsyncSession = Dep
         id=str(msg.id),
         role=msg.role,
         content=msg.content,
+        is_draft=False,
+        visible_to_customer=True,
+        created_at=msg.created_at.isoformat(),
+    )
+
+
+@router.post("/{ticket_id}/messages/{msg_id}/approve", response_model=MessageOut)
+async def approve_draft(
+    ticket_id: UUID, msg_id: UUID,
+    req: ShadowApproveRequest = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Approve a shadow mode draft, optionally with edited content."""
+    if req is None:
+        req = ShadowApproveRequest()
+
+    msg = (await db.execute(
+        select(Message).where(Message.id == msg_id, Message.ticket_id == ticket_id)
+    )).scalar_one_or_none()
+    if not msg:
+        raise HTTPException(404, "Message not found")
+    if not msg.is_draft:
+        raise HTTPException(409, "Message is not a draft")
+
+    edited = req.edited_content is not None and req.edited_content.strip() != msg.content.strip()
+    if edited:
+        msg.content = req.edited_content.strip()
+    msg.is_draft = False
+    msg.visible_to_customer = True
+
+    event_type = EventType.shadow_edited if edited else EventType.shadow_approved
+    db.add(AuditLog(
+        event_type=event_type,
+        actor="agent:manual-review",
+        ticket_id=ticket_id,
+        description=f"Draft {'edited and ' if edited else ''}approved — sent to customer",
+        result="success",
+    ))
+    await db.flush()
+
+    return MessageOut(
+        id=str(msg.id), role=msg.role, content=msg.content,
+        is_draft=msg.is_draft, visible_to_customer=msg.visible_to_customer,
+        created_at=msg.created_at.isoformat(),
+    )
+
+
+@router.post("/{ticket_id}/messages/{msg_id}/reject", response_model=MessageOut)
+async def reject_draft(ticket_id: UUID, msg_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Reject a shadow mode draft. Marks it as a system note, hidden from customer."""
+    msg = (await db.execute(
+        select(Message).where(Message.id == msg_id, Message.ticket_id == ticket_id)
+    )).scalar_one_or_none()
+    if not msg:
+        raise HTTPException(404, "Message not found")
+    if not msg.is_draft:
+        raise HTTPException(409, "Message is not a draft")
+
+    msg.is_draft = False
+    msg.visible_to_customer = False
+    msg.role = MessageRole.system
+    msg.content = f"[Draft rejected] {msg.content}"
+
+    db.add(AuditLog(
+        event_type=EventType.shadow_rejected,
+        actor="agent:manual-review",
+        ticket_id=ticket_id,
+        description="Draft rejected — not sent to customer",
+        result="rejected",
+    ))
+    await db.flush()
+
+    return MessageOut(
+        id=str(msg.id), role=msg.role, content=msg.content,
+        is_draft=msg.is_draft, visible_to_customer=msg.visible_to_customer,
         created_at=msg.created_at.isoformat(),
     )
 
@@ -312,15 +404,17 @@ async def create_action(ticket_id: UUID, req: ActionRequest, db: AsyncSession = 
     ))
 
     if auto_approved:
+        # Execute via mock executor
+        exec_desc = await _execute_action(req.type, req.amount, req.currency)
+
         db.add(AuditLog(
             event_type=EventType.action_executed,
             actor=approved_by,
             ticket_id=ticket.id,
-            description=f"{req.type.title()} of ${req.amount or 0:.2f} {req.currency} executed",
+            description=f"{req.type.title()} of ${req.amount or 0:.2f} {req.currency} executed — {exec_desc}",
             result="success",
         ))
 
-        # Add system message
         db.add(Message(
             ticket_id=ticket.id,
             role=MessageRole.system,
@@ -354,11 +448,14 @@ async def approve_action(ticket_id: UUID, action_id: UUID, db: AsyncSession = De
     action.status = ActionStatus.executed
     action.approved_by = "manager:manual-approval"
 
+    # Execute via mock executor
+    exec_desc = await _execute_action(action.type, float(action.amount or 0), action.currency or "USD")
+
     db.add(AuditLog(
         event_type=EventType.action_executed,
         actor="manager:manual-approval",
         ticket_id=ticket_id,
-        description=f"{action.type.title()} of ${float(action.amount or 0):.2f} {action.currency} approved and executed",
+        description=f"{action.type.title()} of ${float(action.amount or 0):.2f} {action.currency} approved and executed — {exec_desc}",
         result="success",
     ))
 
@@ -464,6 +561,21 @@ async def _check_policy(db: AsyncSession, action_type: str, amount: float | None
     return ("policy:manual-review", False)
 
 
+async def _execute_action(action_type: str, amount: float | None, currency: str) -> str:
+    """Run the mock executor and return a description string for audit."""
+    import os, sys
+    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "packages")))
+    from integrations.executors import create_executor
+
+    try:
+        executor = create_executor(action_type)
+        result = await executor.execute(action_type, amount, currency)
+        return f"executed via {result.provider}, id={result.external_id}"
+    except Exception as e:
+        logger.warning(f"Executor error (non-fatal): {e}")
+        return "executed (executor unavailable)"
+
+
 def _ticket_out(t: Ticket) -> TicketOut:
     return TicketOut(
         id=str(t.id),
@@ -494,6 +606,8 @@ def _ticket_detail(t: Ticket, messages: list, actions: list) -> TicketDetail:
                 id=str(m.id),
                 role=m.role,
                 content=m.content,
+                is_draft=getattr(m, "is_draft", False),
+                visible_to_customer=getattr(m, "visible_to_customer", True),
                 created_at=m.created_at.isoformat(),
             )
             for m in messages

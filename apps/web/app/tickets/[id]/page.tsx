@@ -9,6 +9,8 @@ interface Message {
   id: string;
   role: string;
   content: string;
+  is_draft: boolean;
+  visible_to_customer: boolean;
   created_at: string;
 }
 
@@ -74,7 +76,6 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
-/* Refresh icon (inline SVG) */
 function RefreshIcon({ className }: { className?: string }) {
   return (
     <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -94,6 +95,10 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   const [actionLoading, setActionLoading] = useState(false);
   const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
   const [showActionForm, setShowActionForm] = useState(false);
+  const [shadowMode, setShadowMode] = useState(true);
+  const [editingDraft, setEditingDraft] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [draftLoading, setDraftLoading] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchTicket = useCallback(async () => {
@@ -121,7 +126,11 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
     setAiLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/tickets/${id}/respond`, { method: "POST" });
+      const res = await fetch(`${API_URL}/tickets/${id}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shadow_mode: shadowMode }),
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.detail || `HTTP ${res.status}`);
@@ -131,6 +140,50 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
       setError(e instanceof Error ? e.message : "AI response failed");
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const handleApproveDraft = async (msgId: string, editedContent?: string) => {
+    setDraftLoading(msgId);
+    setError(null);
+    try {
+      const body: Record<string, string> = {};
+      if (editedContent) body.edited_content = editedContent;
+      const res = await fetch(`${API_URL}/tickets/${id}/messages/${msgId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        throw new Error(b.detail || `HTTP ${res.status}`);
+      }
+      setEditingDraft(null);
+      setEditContent("");
+      await fetchTicket();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Approve failed");
+    } finally {
+      setDraftLoading(null);
+    }
+  };
+
+  const handleRejectDraft = async (msgId: string) => {
+    setDraftLoading(msgId);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/tickets/${id}/messages/${msgId}/reject`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        throw new Error(b.detail || `HTTP ${res.status}`);
+      }
+      await fetchTicket();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reject failed");
+    } finally {
+      setDraftLoading(null);
     }
   };
 
@@ -210,7 +263,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   };
 
   if (loading) {
-    return <div className="py-12 text-center text-[var(--color-text-secondary)]">Loading ticket…</div>;
+    return <div className="py-12 text-center text-[var(--color-text-secondary)]">Loading ticket...</div>;
   }
 
   if (!ticket) {
@@ -235,9 +288,9 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
           </h2>
           <div className="mt-1 flex items-center gap-3 text-xs text-[var(--color-text-secondary)]">
             <span>{ticket.customer_name || ticket.customer_email}</span>
-            <span>·</span>
+            <span>&middot;</span>
             <span>{ticket.channel}</span>
-            <span>·</span>
+            <span>&middot;</span>
             <span className={`rounded-full px-2 py-0.5 font-medium ${STATUS_COLORS[ticket.status] || ""}`}>
               {formatLabel(ticket.status)}
             </span>
@@ -266,14 +319,80 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
         <div className="mx-auto max-w-3xl space-y-4">
           {ticket.messages.map((msg) => {
             const style = ROLE_STYLES[msg.role] || ROLE_STYLES.system;
+            const isDraft = msg.is_draft;
+
             return (
               <div key={msg.id} className={`flex ${style.align}`}>
-                <div className={`max-w-[80%] rounded-lg px-4 py-3 ${style.bg}`}>
+                <div className={`max-w-[80%] rounded-lg px-4 py-3 ${isDraft ? "border-2 border-dashed border-amber-500/50 bg-amber-500/5" : style.bg}`}>
                   <div className="mb-1 flex items-center gap-2">
                     <span className="text-xs font-medium opacity-70">{style.label}</span>
+                    {isDraft && (
+                      <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                        Draft
+                      </span>
+                    )}
+                    {!msg.visible_to_customer && !isDraft && (
+                      <span className="rounded-full bg-gray-500/20 px-2 py-0.5 text-[10px] font-medium text-gray-400">
+                        Internal
+                      </span>
+                    )}
                     <span className="text-xs opacity-50">{formatTime(msg.created_at)}</span>
                   </div>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+
+                  {/* Draft editing mode */}
+                  {isDraft && editingDraft === msg.id ? (
+                    <div className="mt-2 space-y-2">
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        rows={4}
+                        className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-base)] px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-amber-500"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleApproveDraft(msg.id, editContent)}
+                          disabled={draftLoading === msg.id}
+                          className="rounded-md bg-[var(--color-success)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-80 disabled:opacity-50"
+                        >
+                          {draftLoading === msg.id ? "Sending..." : "Send Edited"}
+                        </button>
+                        <button
+                          onClick={() => { setEditingDraft(null); setEditContent(""); }}
+                          className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-light)]"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                  )}
+
+                  {/* Draft action buttons */}
+                  {isDraft && editingDraft !== msg.id && (
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => handleApproveDraft(msg.id)}
+                        disabled={draftLoading === msg.id}
+                        className="rounded-md bg-[var(--color-success)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-80 disabled:opacity-50"
+                      >
+                        {draftLoading === msg.id ? "..." : "Approve & Send"}
+                      </button>
+                      <button
+                        onClick={() => { setEditingDraft(msg.id); setEditContent(msg.content); }}
+                        className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/20"
+                      >
+                        Edit & Send
+                      </button>
+                      <button
+                        onClick={() => handleRejectDraft(msg.id)}
+                        disabled={draftLoading === msg.id}
+                        className="rounded-md bg-[var(--color-error)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-80 disabled:opacity-50"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -299,7 +418,6 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
                     </p>
                   )}
 
-                  {/* Approve/Reject buttons for pending actions */}
                   {action.status === "pending" && (
                     <div className="mt-3 flex items-center justify-center gap-2">
                       <button
@@ -307,7 +425,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
                         disabled={approvalLoading === action.id}
                         className="rounded-md bg-[var(--color-success)] px-4 py-1.5 text-xs font-medium text-white hover:opacity-80 disabled:opacity-50"
                       >
-                        {approvalLoading === action.id ? "Processing…" : "Approve"}
+                        {approvalLoading === action.id ? "Processing..." : "Approve"}
                       </button>
                       <button
                         onClick={() => handleApproval(action.id, "reject")}
@@ -348,7 +466,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
-              placeholder="Type a reply as agent…"
+              placeholder="Type a reply as agent..."
               disabled={replyLoading}
               className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)]/50 outline-none focus:border-[var(--color-accent)] disabled:opacity-50"
             />
@@ -357,15 +475,24 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
               disabled={replyLoading || !replyText.trim()}
               className="rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
             >
-              {replyLoading ? "Sending…" : "Send"}
+              {replyLoading ? "Sending..." : "Send"}
             </button>
           </div>
           {/* Quick actions */}
-          <div className="mx-auto flex max-w-3xl gap-3">
+          <div className="mx-auto flex max-w-3xl items-center gap-3">
             <button onClick={handleAIRespond} disabled={aiLoading}
               className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50">
-              {aiLoading ? "AI Thinking…" : "AI Respond"}
+              {aiLoading ? "AI Thinking..." : "AI Respond"}
             </button>
+            <label className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={shadowMode}
+                onChange={(e) => setShadowMode(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-[var(--color-border)] accent-amber-500"
+              />
+              Shadow Mode
+            </label>
             <button onClick={() => setShowActionForm(!showActionForm)}
               className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-light)]">
               Process Action
@@ -417,11 +544,11 @@ function ActionForm({
         </button>
         <button onClick={() => amount && onSubmit(type, parseFloat(amount))} disabled={loading || !amount}
           className="rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50">
-          {loading ? "Processing…" : "Submit"}
+          {loading ? "Processing..." : "Submit"}
         </button>
       </div>
       <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-        Under $50: auto-approved. $50–$200: requires manager approval. Over $200: manual review.
+        Under $50: auto-approved. $50-$200: requires manager approval. Over $200: manual review.
       </p>
     </div>
   );

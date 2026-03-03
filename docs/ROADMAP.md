@@ -15,11 +15,12 @@ Every phase has a **kill/pivot gate**. If metrics miss targets, we don't push fo
 - ~~LLM Gateway with Gemini adapter~~ **DONE (Task 02)** — Real Gemini complete + streaming, API endpoints, chat playground
 - ~~Database schema + migrations + audit log~~ **DONE (Task 03)** — 5 tables, Alembic migrations, audit CRUD API, audit log frontend
 - ~~Demo dashboard + tickets + AI resolution~~ **DONE (Task 04)** — Live stats, ticket CRUD, AI respond, policy-gated actions, full demo loop
-- Connect 2 channels (email + chat widget)
-- Implement 2 write actions (refund + reship via Shopify/Stripe)
-- Policy engine v1: caps, approvals, audit log
-- Executive dashboard with live metrics (dark + light themes)
-- Shadow mode: AI drafts responses, human approves
+- ~~Channels, shadow mode, mock executors~~ **DONE (Task 05)** — Email inbound + chat, shadow mode (draft→approve/edit/reject), mock Stripe/Shopify executors, email simulator + chat widget UI
+- ~~Connect 2 channels~~ **DONE** — Email inbound with thread detection + live chat with polling
+- ~~Implement 2 write actions~~ **DONE** — Mock Stripe refund (re_ IDs) + Shopify reship (fulfillment + tracking)
+- ~~Policy engine v1~~ **DONE** — Caps, approvals, audit log (completed in Task 04)
+- ~~Executive dashboard with live metrics~~ **DONE** — Channel breakdown, drafts pending, dark + light themes
+- ~~Shadow mode~~ **DONE** — AI drafts responses, human approves/edits/rejects
 
 ### Success Metrics
 - Can execute a refund with full audit trail

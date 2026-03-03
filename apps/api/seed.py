@@ -64,7 +64,7 @@ async def seed():
             ]
             session.add_all(policies)
 
-        # --- Ticket 1: Resolved refund (existing) ---
+        # --- Ticket 1: Resolved refund ---
         t1 = Ticket(
             channel=ChannelType.email, status=TicketStatus.resolved,
             priority=TicketPriority.medium,
@@ -116,7 +116,7 @@ async def seed():
             created_at=now - timedelta(hours=3),
         ))
 
-        # --- Ticket 3: Pending — reship request ---
+        # --- Ticket 3: Pending with shadow mode draft ---
         t3 = Ticket(
             channel=ChannelType.email, status=TicketStatus.pending,
             priority=TicketPriority.medium,
@@ -133,6 +133,7 @@ async def seed():
                     created_at=now - timedelta(hours=2)),
             Message(ticket_id=t3.id, role=MessageRole.ai,
                     content="I'm sorry about the mix-up, James. I can ship the correct medium size right away. The reship will be processed at no additional cost to you.",
+                    is_draft=True, visible_to_customer=False,
                     created_at=now - timedelta(hours=1, minutes=55)),
         ])
 
@@ -179,6 +180,23 @@ async def seed():
             updated_at=now - timedelta(minutes=38),
         ))
 
+        # --- Ticket 6: Chat channel ticket ---
+        t6 = Ticket(
+            channel=ChannelType.chat, status=TicketStatus.open,
+            priority=TicketPriority.medium,
+            subject="Need help with my account login",
+            customer_email="chat.user@example.com", customer_name="Jordan Lee",
+            created_at=now - timedelta(minutes=20), updated_at=now - timedelta(minutes=20),
+        )
+        session.add(t6)
+        await session.flush()
+
+        session.add(Message(
+            ticket_id=t6.id, role=MessageRole.customer,
+            content="Hi, I can't log into my account. I've tried resetting my password but I'm not receiving the reset email. Can you help?",
+            created_at=now - timedelta(minutes=20),
+        ))
+
         # --- Audit log entries ---
         audit_entries = [
             AuditLog(event_type=EventType.ticket_created, actor="system", ticket_id=t1.id,
@@ -191,21 +209,24 @@ async def seed():
                      description="Refund $34.99 — auto-approved under $50 policy",
                      result="approved", created_at=now - timedelta(hours=5, minutes=49)),
             AuditLog(event_type=EventType.action_executed, actor="policy:refund-auto-approve", ticket_id=t1.id,
-                     description="Refund of $34.99 USD executed for order #ORD-4821",
+                     description="Refund of $34.99 USD executed — executed via stripe-mock, id=re_demo0001",
                      result="success", created_at=now - timedelta(hours=5, minutes=48)),
             AuditLog(event_type=EventType.ticket_resolved, actor="system", ticket_id=t1.id,
                      description="Ticket auto-resolved after successful refund",
                      result="success", created_at=now - timedelta(hours=4)),
-            AuditLog(event_type=EventType.ticket_created, actor="system", ticket_id=t2.id,
-                     description="Ticket created from chat — shipping delay complaint",
+            AuditLog(event_type=EventType.ticket_created, actor="channel:chat", ticket_id=t2.id,
+                     description="Chat started by maria.garcia@example.com — shipping delay",
                      result="success", created_at=now - timedelta(hours=3)),
-            AuditLog(event_type=EventType.ticket_created, actor="system", ticket_id=t3.id,
+            AuditLog(event_type=EventType.channel_inbound, actor="channel:chat", ticket_id=t2.id,
+                     description="Inbound chat from maria.garcia@example.com",
+                     result="success", created_at=now - timedelta(hours=3)),
+            AuditLog(event_type=EventType.ticket_created, actor="channel:email", ticket_id=t3.id,
                      description="Ticket created from email — wrong size, exchange needed",
                      result="success", created_at=now - timedelta(hours=2)),
-            AuditLog(event_type=EventType.ai_response, actor="gemini-3.1-pro-preview", ticket_id=t3.id,
-                     description="AI drafted reship response for wrong size hoodie",
+            AuditLog(event_type=EventType.shadow_draft, actor="gemini-3.1-pro-preview", ticket_id=t3.id,
+                     description="AI draft (shadow mode) — reship response for wrong size hoodie",
                      result="success", created_at=now - timedelta(hours=1, minutes=55)),
-            AuditLog(event_type=EventType.ticket_created, actor="system", ticket_id=t4.id,
+            AuditLog(event_type=EventType.ticket_created, actor="channel:email", ticket_id=t4.id,
                      description="Ticket created from email — duplicate subscription charge",
                      result="success", created_at=now - timedelta(hours=1)),
             AuditLog(event_type=EventType.ticket_created, actor="system", ticket_id=t5.id,
@@ -220,11 +241,17 @@ async def seed():
             AuditLog(event_type=EventType.ticket_escalated, actor="policy-engine", ticket_id=t5.id,
                      description="Ticket escalated — refund $189 requires approval",
                      result="success", created_at=now - timedelta(minutes=35)),
+            AuditLog(event_type=EventType.ticket_created, actor="channel:chat", ticket_id=t6.id,
+                     description="Chat started by chat.user@example.com — account login help",
+                     result="success", created_at=now - timedelta(minutes=20)),
+            AuditLog(event_type=EventType.channel_inbound, actor="channel:chat", ticket_id=t6.id,
+                     description="Inbound chat from chat.user@example.com",
+                     result="success", created_at=now - timedelta(minutes=20)),
         ]
         session.add_all(audit_entries)
 
         await session.commit()
-        print("Seed data inserted: 3 policies, 5 tickets, 13 audit entries")
+        print("Seed data inserted: 3 policies, 6 tickets (1 with shadow draft, 2 via chat), 16 audit entries")
 
 
 if __name__ == "__main__":

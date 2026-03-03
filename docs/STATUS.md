@@ -9,13 +9,16 @@
 ## Current Milestone
 
 **Phase 0 — Prototype (Weeks 1–2)**
-Build the core proof: can we resolve tickets and execute actions safely with audit trails?
+Build the core proof: can we resolve tickets and execute actions safely with audit trails.
 
 ## Last Working Demo
 
-**Available now.** Full loop: Dashboard → Tickets → AI Respond → Policy Check → Action → Audit Log.
-- Dashboard: http://localhost:3100
-- Tickets: http://localhost:3100/tickets
+**Available now.** Full loop with channels, shadow mode, and mock executors.
+- Dashboard: http://localhost:3100 (channel stats, drafts pending)
+- Tickets: http://localhost:3100/tickets (shadow mode drafts)
+- Channels: http://localhost:3100/channels (email simulator)
+- Chat: http://localhost:3100/chat (customer chat widget)
+- Audit Log: http://localhost:3100/audit-log (new event types)
 
 ## KPIs (will populate once pilot begins)
 
@@ -72,10 +75,24 @@ Build the core proof: can we resolve tickets and execute actions safely with aud
 - [x] Approve/Reject API endpoints (`POST /tickets/{id}/actions/{action_id}/approve|reject`)
 - [x] Resolved ticket banner + conditional action bar
 - [x] Playground: Stop button for streaming + ResolveOps system prompt
+- [x] **Task 05:** Channels, Shadow Mode, Mock Executors
+- [x] Email inbound channel with thread detection (`POST /channels/email/inbound`)
+- [x] Live chat channel (start, message, poll with `visible_to_customer` filter)
+- [x] Shadow mode: AI drafts → human approves/edits/rejects
+- [x] Mock action executors (Stripe refund `re_` IDs, Shopify reship with fulfillment + tracking)
+- [x] Executor factory pattern matching LLM Gateway adapters
+- [x] Dashboard: channel breakdown (email/chat), drafts pending count
+- [x] Channels page (email simulator with templates + chat widget link)
+- [x] Customer chat widget with pre-chat form + 3s polling
+- [x] Shadow mode UI: dashed amber draft badge, Approve & Send / Edit & Send / Reject
+- [x] Shadow mode toggle checkbox on ticket detail
+- [x] Seed data: 6 tickets (shadow draft + chat), 16 audit entries, mock executor results
+- [x] New EventTypes: shadow_draft, shadow_approved, shadow_rejected, shadow_edited, channel_inbound
+- [x] Alembic migration for `messages.is_draft` + `messages.visible_to_customer`
 
 ## In Progress
 
-- [ ] Channel integrations (email + chat widget)
+- [ ] Phase 0 Gate A review
 
 ## Blocked
 
@@ -102,4 +119,9 @@ Nothing currently blocked.
 
 **Due:** End of Week 2
 **Criteria:** Safe refund/reship execution with audit trails
-**Current confidence:** High (full demo loop working end-to-end)
+**Current confidence:** Very High — all Phase 0 deliverables complete:
+- Email + chat channels working
+- Shadow mode (AI drafts, human approves) end-to-end
+- Mock Stripe refund + Shopify reship executors
+- Full audit trail with new event types
+- Dashboard with channel stats + drafts pending

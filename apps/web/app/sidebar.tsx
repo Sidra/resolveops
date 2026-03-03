@@ -9,6 +9,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3101";
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
   { href: "/tickets", label: "Tickets" },
+  { href: "/channels", label: "Channels" },
+  { href: "/chat", label: "Live Chat" },
   { href: "/audit-log", label: "Audit Log" },
   { href: "/playground", label: "Playground" },
 ];

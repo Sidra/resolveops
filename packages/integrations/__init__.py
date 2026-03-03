@@ -1,3 +1,6 @@
 # ResolveOps Integrations
 # Channel connectors (email, chat) and commerce connectors (Shopify, Stripe).
-# Implementation coming in Phase 0 Task 05+.
+
+from .executors import create_executor, ActionExecutor, ExecutionResult
+
+__all__ = ["create_executor", "ActionExecutor", "ExecutionResult"]

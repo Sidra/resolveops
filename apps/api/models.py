@@ -84,6 +84,11 @@ class EventType(str, enum.Enum):
     action_executed = "action_executed"
     action_rejected = "action_rejected"
     human_override = "human_override"
+    shadow_draft = "shadow_draft"
+    shadow_approved = "shadow_approved"
+    shadow_rejected = "shadow_rejected"
+    shadow_edited = "shadow_edited"
+    channel_inbound = "channel_inbound"
 
 
 class PolicyType(str, enum.Enum):
@@ -141,6 +146,8 @@ class Message(Base):
     )
     role: Mapped[str] = mapped_column(Enum(MessageRole, name="message_role"), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    is_draft: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    visible_to_customer: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     ticket: Mapped["Ticket"] = relationship(back_populates="messages")
