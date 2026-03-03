@@ -11,6 +11,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 
+SYSTEM_PROMPT = (
+    "You are ResolveOps AI, a customer support assistant for an AI-native customer ops platform. "
+    "You help resolve customer tickets: refunds, reshipments, order inquiries, and general support. "
+    "Be concise, helpful, and professional. Keep responses short (2-4 sentences) unless the customer "
+    "needs detailed instructions. Never make up order numbers or financial details."
+)
+
 
 class LLMRequest(BaseModel):
     prompt: str = Field(..., min_length=1, max_length=100_000)
@@ -36,6 +43,7 @@ async def complete(req: LLMRequest):
             req.prompt,
             temperature=req.temperature,
             max_tokens=req.max_tokens,
+            system_prompt=SYSTEM_PROMPT,
         )
     except Exception as e:
         logger.exception("LLM complete error")
@@ -61,6 +69,7 @@ async def stream(req: LLMRequest):
                 req.prompt,
                 temperature=req.temperature,
                 max_tokens=req.max_tokens,
+                system_prompt=SYSTEM_PROMPT,
             ):
                 yield {"data": json.dumps({"chunk": chunk})}
             yield {"data": json.dumps({"done": True})}

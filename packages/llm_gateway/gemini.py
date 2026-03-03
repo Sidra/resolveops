@@ -27,6 +27,7 @@ class GeminiAdapter(LLMAdapter):
         config = types.GenerateContentConfig(
             temperature=kwargs.get("temperature", 0.7),
             max_output_tokens=kwargs.get("max_tokens", 1024),
+            system_instruction=kwargs.get("system_prompt"),
         )
         response = await self._client.aio.models.generate_content(
             model=self._model,
@@ -39,6 +40,7 @@ class GeminiAdapter(LLMAdapter):
         config = types.GenerateContentConfig(
             temperature=kwargs.get("temperature", 0.7),
             max_output_tokens=kwargs.get("max_tokens", 1024),
+            system_instruction=kwargs.get("system_prompt"),
         )
         stream = await self._client.aio.models.generate_content_stream(
             model=self._model,

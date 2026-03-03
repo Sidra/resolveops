@@ -16,6 +16,7 @@ export default function PlaygroundPage() {
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,11 +38,15 @@ export default function PlaygroundPage() {
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setIsStreaming(true);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const res = await fetch(`${API_URL}/llm/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -91,17 +96,22 @@ export default function PlaygroundPage() {
         }
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Unknown error";
-      setError(msg);
-      // Remove the empty assistant message on error
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "assistant" && !last.content) {
-          return prev.slice(0, -1);
-        }
-        return prev;
-      });
+      if (e instanceof DOMException && e.name === "AbortError") {
+        // User stopped the stream — keep partial content
+      } else {
+        const msg = e instanceof Error ? e.message : "Unknown error";
+        setError(msg);
+        // Remove the empty assistant message on error
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.role === "assistant" && !last.content) {
+            return prev.slice(0, -1);
+          }
+          return prev;
+        });
+      }
     } finally {
+      abortRef.current = null;
       setIsStreaming(false);
     }
   }, [input, isStreaming]);
@@ -111,6 +121,10 @@ export default function PlaygroundPage() {
       e.preventDefault();
       sendMessage();
     }
+  };
+
+  const stopStreaming = () => {
+    abortRef.current?.abort();
   };
 
   const clearConversation = () => {
@@ -193,13 +207,22 @@ export default function PlaygroundPage() {
             disabled={isStreaming}
             className="flex-1 resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)] outline-none transition-colors focus:border-[var(--color-accent)] disabled:opacity-50"
           />
-          <button
-            onClick={sendMessage}
-            disabled={isStreaming || !input.trim()}
-            className="rounded-lg bg-[var(--color-accent)] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isStreaming ? "…" : "Send"}
-          </button>
+          {isStreaming ? (
+            <button
+              onClick={stopStreaming}
+              className="rounded-lg bg-[var(--color-error)] px-5 py-3 text-sm font-medium text-white transition-colors hover:opacity-80"
+            >
+              Stop
+            </button>
+          ) : (
+            <button
+              onClick={sendMessage}
+              disabled={!input.trim()}
+              className="rounded-lg bg-[var(--color-accent)] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[var(--color-accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Send
+            </button>
+          )}
         </div>
       </div>
     </div>
