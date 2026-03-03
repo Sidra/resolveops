@@ -241,6 +241,20 @@ async def create_action(ticket_id: UUID, req: ActionRequest, db: AsyncSession = 
     if not ticket:
         raise HTTPException(404, "Ticket not found")
 
+    # Prevent duplicate: check for existing pending/executed action of same type
+    existing = (await db.execute(
+        select(Action).where(
+            Action.ticket_id == ticket_id,
+            Action.type == req.type,
+            Action.status.in_([ActionStatus.pending, ActionStatus.executed, ActionStatus.approved]),
+        )
+    )).scalar_one_or_none()
+    if existing:
+        raise HTTPException(
+            409,
+            f"A {req.type} action already exists on this ticket (status: {existing.status.value if hasattr(existing.status, 'value') else existing.status})"
+        )
+
     # Policy check
     approved_by, auto_approved = await _check_policy(db, req.type, req.amount)
 
@@ -291,6 +305,79 @@ async def create_action(ticket_id: UUID, req: ActionRequest, db: AsyncSession = 
         amount=float(action.amount) if action.amount else None,
         currency=action.currency,
         approved_by=action.approved_by,
+        created_at=action.created_at.isoformat(),
+    )
+
+
+@router.post("/{ticket_id}/actions/{action_id}/approve")
+async def approve_action(ticket_id: UUID, action_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Approve a pending action."""
+    action = (await db.execute(
+        select(Action).where(Action.id == action_id, Action.ticket_id == ticket_id)
+    )).scalar_one_or_none()
+    if not action:
+        raise HTTPException(404, "Action not found")
+    if action.status != ActionStatus.pending:
+        raise HTTPException(409, f"Action is already {action.status}")
+
+    action.status = ActionStatus.executed
+    action.approved_by = "manager:manual-approval"
+
+    db.add(AuditLog(
+        event_type=EventType.action_executed,
+        actor="manager:manual-approval",
+        ticket_id=ticket_id,
+        description=f"{action.type.title()} of ${float(action.amount or 0):.2f} {action.currency} approved and executed",
+        result="success",
+    ))
+
+    db.add(Message(
+        ticket_id=ticket_id,
+        role=MessageRole.system,
+        content=f"{action.type.title()} of ${float(action.amount or 0):.2f} {action.currency} has been approved and processed.",
+    ))
+
+    await db.flush()
+    return ActionOut(
+        id=str(action.id), type=action.type, status=action.status,
+        amount=float(action.amount) if action.amount else None,
+        currency=action.currency, approved_by=action.approved_by,
+        created_at=action.created_at.isoformat(),
+    )
+
+
+@router.post("/{ticket_id}/actions/{action_id}/reject")
+async def reject_action(ticket_id: UUID, action_id: UUID, db: AsyncSession = Depends(get_db)):
+    """Reject a pending action."""
+    action = (await db.execute(
+        select(Action).where(Action.id == action_id, Action.ticket_id == ticket_id)
+    )).scalar_one_or_none()
+    if not action:
+        raise HTTPException(404, "Action not found")
+    if action.status != ActionStatus.pending:
+        raise HTTPException(409, f"Action is already {action.status}")
+
+    action.status = ActionStatus.rejected
+
+    db.add(AuditLog(
+        event_type=EventType.action_rejected,
+        actor="manager:manual-review",
+        ticket_id=ticket_id,
+        description=f"{action.type.title()} of ${float(action.amount or 0):.2f} {action.currency} rejected",
+        result="rejected",
+    ))
+
+    db.add(Message(
+        ticket_id=ticket_id,
+        role=MessageRole.system,
+        content=f"{action.type.title()} of ${float(action.amount or 0):.2f} {action.currency} has been rejected.",
+    ))
+
+    await db.flush()
+    return ActionOut(
+        id=str(action.id), type=action.type, status=action.status,
+        amount=float(action.amount) if action.amount else None,
+        currency=action.currency, approved_by=action.approved_by,
         created_at=action.created_at.isoformat(),
     )
 

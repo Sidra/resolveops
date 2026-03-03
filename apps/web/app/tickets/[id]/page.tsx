@@ -81,10 +81,12 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   const [error, setError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
   const [showActionForm, setShowActionForm] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchTicket = useCallback(async () => {
+    setError(null);
     try {
       const res = await fetch(`${API_URL}/tickets/${id}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -143,7 +145,27 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const handleApproval = async (actionId: string, decision: "approve" | "reject") => {
+    setApprovalLoading(actionId);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/tickets/${id}/actions/${actionId}/${decision}`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `HTTP ${res.status}`);
+      }
+      await fetchTicket();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `${decision} failed`);
+    } finally {
+      setApprovalLoading(null);
+    }
+  };
+
   const handleResolve = async () => {
+    setError(null);
     try {
       const res = await fetch(`${API_URL}/tickets/${id}/resolve`, { method: "POST" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -162,6 +184,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   }
 
   const isResolved = ticket.status === "resolved" || ticket.status === "closed";
+  const hasPendingAction = ticket.actions.some((a) => a.status === "pending");
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
@@ -192,6 +215,10 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
         </div>
 
         <div className="flex gap-2">
+          <button onClick={fetchTicket}
+            className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-light)]">
+            Refresh
+          </button>
           {!isResolved && (
             <button onClick={handleResolve}
               className="rounded-md bg-[var(--color-success)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-80">
@@ -224,7 +251,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
             <div className="space-y-2">
               {ticket.actions.map((action) => (
                 <div key={action.id}
-                  className="mx-auto max-w-md rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-center">
+                  className="mx-auto max-w-md rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
                   <div className="flex items-center justify-center gap-2">
                     <span className="text-sm font-medium text-[var(--color-text-primary)]">
                       {formatLabel(action.type)}: ${action.amount?.toFixed(2)} {action.currency}
@@ -234,9 +261,29 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
                     </span>
                   </div>
                   {action.approved_by && (
-                    <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                      Approved by: {action.approved_by}
+                    <p className="mt-1 text-center text-xs text-[var(--color-text-secondary)]">
+                      {action.status === "executed" ? "Approved" : "Reviewed"} by: {action.approved_by}
                     </p>
+                  )}
+
+                  {/* Approve/Reject buttons for pending actions */}
+                  {action.status === "pending" && (
+                    <div className="mt-3 flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => handleApproval(action.id, "approve")}
+                        disabled={approvalLoading === action.id}
+                        className="rounded-md bg-[var(--color-success)] px-4 py-1.5 text-xs font-medium text-white hover:opacity-80 disabled:opacity-50"
+                      >
+                        {approvalLoading === action.id ? "Processing…" : "Approve"}
+                      </button>
+                      <button
+                        onClick={() => handleApproval(action.id, "reject")}
+                        disabled={approvalLoading === action.id}
+                        className="rounded-md bg-[var(--color-error)] px-4 py-1.5 text-xs font-medium text-white hover:opacity-80 disabled:opacity-50"
+                      >
+                        Reject
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -271,12 +318,14 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
               className="rounded-lg border border-[var(--color-border)] px-5 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-light)]">
               Process Action
             </button>
-            <div className="flex-1" />
-            <button onClick={fetchTicket}
-              className="rounded-lg border border-[var(--color-border)] px-3 py-3 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-light)]">
-              Refresh
-            </button>
           </div>
+        </div>
+      )}
+
+      {/* Resolved banner */}
+      {isResolved && (
+        <div className="border-t border-[var(--color-success)]/30 bg-[var(--color-success)]/5 px-6 py-3 text-center text-sm text-[var(--color-success)]">
+          This ticket has been resolved
         </div>
       )}
     </div>
@@ -320,7 +369,7 @@ function ActionForm({
         </button>
       </div>
       <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-        Policy engine will auto-approve or escalate based on amount thresholds.
+        Under $50: auto-approved. $50–$200: requires manager approval. Over $200: manual review.
       </p>
     </div>
   );

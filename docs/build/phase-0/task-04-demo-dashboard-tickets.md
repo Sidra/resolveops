@@ -26,7 +26,9 @@
 | | `POST /tickets` — create ticket with initial message |
 | | `GET /tickets/{id}` — detail with messages + actions |
 | | `POST /tickets/{id}/respond` — AI generates response |
-| | `POST /tickets/{id}/actions` — create action with policy check |
+| | `POST /tickets/{id}/actions` — create action with policy check (409 on duplicates) |
+| | `POST /tickets/{id}/actions/{action_id}/approve` — approve pending action |
+| | `POST /tickets/{id}/actions/{action_id}/reject` — reject pending action |
 | | `POST /tickets/{id}/resolve` — mark as resolved |
 
 ### Policy engine (inline)
@@ -52,7 +54,7 @@
 |------|-----|----------|
 | Dashboard | `/` | 4 stat cards (open, resolved today, auto-resolve %, pending actions), ticket overview, activity feed, auto-refresh 15s |
 | Tickets | `/tickets` | List with status/priority badges, channel icons, status filter, create ticket form, pagination |
-| Ticket Detail | `/tickets/[id]` | Conversation thread, AI Respond button, Process Action form, Resolve button, policy check feedback |
+| Ticket Detail | `/tickets/[id]` | Conversation thread, AI Respond button, Process Action form, Approve/Reject for pending actions, Resolve button, resolved banner, policy check feedback |
 | Sidebar | (all pages) | Active highlighting, all nav links working |
 
 ### Sidebar refactor
@@ -88,9 +90,16 @@ cd apps/web && pnpm dev
 # - Click "Order #ORD-5102 not delivered" (open ticket)
 # - Click "AI Respond" — AI drafts a response
 # - Click "Process Action" → Refund $29.99 → auto-approved!
+# - Try "Process Action" again → Refund → 409 duplicate blocked!
 # - Click "Resolve"
 # - Go back to Dashboard — stats updated
 # - Check Audit Log — all events tracked
+#
+# Approval flow:
+# - Click "Entire order damaged" ticket (escalated, $189)
+# - See pending action with Approve/Reject buttons
+# - Click "Approve" — action becomes executed
+# - Or click "Reject" — action becomes rejected
 
 # 6. API endpoints
 curl http://localhost:3101/dashboard
@@ -107,6 +116,5 @@ curl -X POST http://localhost:3101/tickets -H "Content-Type: application/json" \
 - Real-time WebSocket updates (future)
 - Ticket assignment to agents
 - Message reply from agent (human)
-- Action approval flow for pending actions
 - Ticket search
 - Bulk operations

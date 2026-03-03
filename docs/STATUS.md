@@ -67,6 +67,11 @@ Build the core proof: can we resolve tickets and execute actions safely with aud
 - [x] Playground: stop button + ResolveOps system prompt
 - [x] Enriched seed data (5 tickets, 13 audit entries)
 - [x] `suppressHydrationWarning` for Dark Reader compat
+- [x] Duplicate action prevention (409 if same action type already pending/executed)
+- [x] Action approval flow — Approve/Reject buttons on pending actions
+- [x] Approve/Reject API endpoints (`POST /tickets/{id}/actions/{action_id}/approve|reject`)
+- [x] Resolved ticket banner + conditional action bar
+- [x] Playground: Stop button for streaming + ResolveOps system prompt
 
 ## In Progress
 
