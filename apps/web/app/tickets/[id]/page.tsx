@@ -185,6 +185,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
 
   const isResolved = ticket.status === "resolved" || ticket.status === "closed";
   const hasPendingAction = ticket.actions.some((a) => a.status === "pending");
+  const hasActiveAction = ticket.actions.some((a) => a.status === "pending" || a.status === "executed" || a.status === "approved");
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
@@ -301,8 +302,8 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
         </div>
       )}
 
-      {/* Action form */}
-      {showActionForm && !isResolved && (
+      {/* Action form — only when no active action exists */}
+      {showActionForm && !isResolved && !hasActiveAction && (
         <ActionForm onSubmit={handleAction} onCancel={() => setShowActionForm(false)} loading={actionLoading} />
       )}
 
@@ -314,10 +315,12 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
               className="rounded-lg bg-purple-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50">
               {aiLoading ? "AI Thinking…" : "AI Respond"}
             </button>
-            <button onClick={() => setShowActionForm(!showActionForm)}
-              className="rounded-lg border border-[var(--color-border)] px-5 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-light)]">
-              Process Action
-            </button>
+            {!hasActiveAction && (
+              <button onClick={() => setShowActionForm(!showActionForm)}
+                className="rounded-lg border border-[var(--color-border)] px-5 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-light)]">
+                Process Action
+              </button>
+            )}
           </div>
         </div>
       )}
