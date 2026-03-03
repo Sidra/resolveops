@@ -88,6 +88,10 @@ class AIRespondRequest(BaseModel):
     pass  # No input needed — AI reads the conversation
 
 
+class ReplyRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=5000)
+
+
 class ActionRequest(BaseModel):
     type: str  # refund, reship
     amount: float | None = None
@@ -231,6 +235,33 @@ async def ai_respond(ticket_id: UUID, db: AsyncSession = Depends(get_db)):
         role=ai_msg.role,
         content=ai_msg.content,
         created_at=ai_msg.created_at.isoformat(),
+    )
+
+
+@router.post("/{ticket_id}/reply", status_code=201, response_model=MessageOut)
+async def agent_reply(ticket_id: UUID, req: ReplyRequest, db: AsyncSession = Depends(get_db)):
+    """Send a manual agent reply to the ticket."""
+    ticket = (await db.execute(select(Ticket).where(Ticket.id == ticket_id))).scalar_one_or_none()
+    if not ticket:
+        raise HTTPException(404, "Ticket not found")
+
+    msg = Message(
+        ticket_id=ticket.id,
+        role=MessageRole.agent,
+        content=req.content,
+    )
+    db.add(msg)
+
+    if ticket.status == TicketStatus.open:
+        ticket.status = TicketStatus.pending
+
+    await db.flush()
+
+    return MessageOut(
+        id=str(msg.id),
+        role=msg.role,
+        content=msg.content,
+        created_at=msg.created_at.isoformat(),
     )
 
 

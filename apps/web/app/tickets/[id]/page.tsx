@@ -74,12 +74,23 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
+/* Refresh icon (inline SVG) */
+function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+    </svg>
+  );
+}
+
 export default function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [ticket, setTicket] = useState<TicketDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [replyText, setReplyText] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [approvalLoading, setApprovalLoading] = useState<string | null>(null);
   const [showActionForm, setShowActionForm] = useState(false);
@@ -120,6 +131,29 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
       setError(e instanceof Error ? e.message : "AI response failed");
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim()) return;
+    setReplyLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/tickets/${id}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: replyText.trim() }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `HTTP ${res.status}`);
+      }
+      setReplyText("");
+      await fetchTicket();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reply failed");
+    } finally {
+      setReplyLoading(false);
     }
   };
 
@@ -184,8 +218,6 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   }
 
   const isResolved = ticket.status === "resolved" || ticket.status === "closed";
-  const hasPendingAction = ticket.actions.some((a) => a.status === "pending");
-  const hasActiveAction = ticket.actions.some((a) => a.status === "pending" || a.status === "executed" || a.status === "approved");
 
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col">
@@ -216,9 +248,9 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
         </div>
 
         <div className="flex gap-2">
-          <button onClick={fetchTicket}
-            className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-light)]">
-            Refresh
+          <button onClick={fetchTicket} title="Refresh"
+            className="rounded-md border border-[var(--color-border)] p-1.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-light)]">
+            <RefreshIcon />
           </button>
           {!isResolved && (
             <button onClick={handleResolve}
@@ -302,25 +334,42 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
         </div>
       )}
 
-      {/* Action form — only when no active action exists */}
-      {showActionForm && !isResolved && !hasActiveAction && (
+      {/* Action form */}
+      {showActionForm && !isResolved && (
         <ActionForm onSubmit={handleAction} onCancel={() => setShowActionForm(false)} loading={actionLoading} />
       )}
 
       {/* Action bar */}
       {!isResolved && (
-        <div className="border-t border-[var(--color-border)] pt-4">
+        <div className="border-t border-[var(--color-border)] pt-3 pb-1">
+          {/* Manual reply input */}
+          <div className="mx-auto mb-3 flex max-w-3xl gap-2">
+            <input
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
+              placeholder="Type a reply as agent…"
+              disabled={replyLoading}
+              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] px-4 py-2.5 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-secondary)]/50 outline-none focus:border-[var(--color-accent)] disabled:opacity-50"
+            />
+            <button
+              onClick={handleReply}
+              disabled={replyLoading || !replyText.trim()}
+              className="rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-50"
+            >
+              {replyLoading ? "Sending…" : "Send"}
+            </button>
+          </div>
+          {/* Quick actions */}
           <div className="mx-auto flex max-w-3xl gap-3">
             <button onClick={handleAIRespond} disabled={aiLoading}
-              className="rounded-lg bg-purple-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50">
+              className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-purple-700 disabled:opacity-50">
               {aiLoading ? "AI Thinking…" : "AI Respond"}
             </button>
-            {!hasActiveAction && (
-              <button onClick={() => setShowActionForm(!showActionForm)}
-                className="rounded-lg border border-[var(--color-border)] px-5 py-3 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-light)]">
-                Process Action
-              </button>
-            )}
+            <button onClick={() => setShowActionForm(!showActionForm)}
+              className="rounded-lg border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-surface-light)]">
+              Process Action
+            </button>
           </div>
         </div>
       )}
@@ -348,7 +397,7 @@ function ActionForm({
   const [amount, setAmount] = useState("");
 
   return (
-    <div className="mx-auto mb-4 max-w-3xl rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+    <div className="mx-auto mb-2 max-w-3xl rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <h4 className="mb-3 text-sm font-semibold text-[var(--color-text-primary)]">Process Action</h4>
       <div className="flex items-center gap-3">
         <select value={type} onChange={(e) => setType(e.target.value)}

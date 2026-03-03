@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3101";
 
@@ -15,7 +15,6 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const [resetting, setResetting] = useState(false);
 
   const handleResetDemo = async () => {
@@ -24,7 +23,6 @@ export function Sidebar() {
     try {
       const res = await fetch(`${API_URL}/demo/reset`, { method: "POST" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // Navigate to dashboard and force full refresh
       window.location.href = "/";
     } catch (e) {
       alert("Reset failed — check that the API is running.");
@@ -34,11 +32,11 @@ export function Sidebar() {
 
   return (
     <aside className="hidden w-64 border-r border-[var(--color-border)] bg-[var(--color-surface)] md:block">
-      <div className="flex h-16 items-center px-6">
+      <Link href="/" className="flex h-16 items-center px-6">
         <span className="text-lg font-bold text-[var(--color-accent)]">
           ResolveOps
         </span>
-      </div>
+      </Link>
       <nav className="flex flex-col justify-between px-4 py-2" style={{ height: "calc(100% - 4rem)" }}>
         <div>
           <p className="px-2 text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
@@ -66,15 +64,6 @@ export function Sidebar() {
                 </li>
               );
             })}
-          </ul>
-
-          <p className="mt-6 px-2 text-xs font-medium uppercase tracking-wider text-[var(--color-text-secondary)]">
-            System
-          </p>
-          <ul className="mt-2 space-y-1">
-            <li className="rounded-md px-3 py-2 text-sm text-[var(--color-text-secondary)]">
-              Settings
-            </li>
           </ul>
         </div>
 
