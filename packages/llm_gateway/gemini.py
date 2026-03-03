@@ -7,7 +7,7 @@ from .base import LLMAdapter
 class GeminiAdapter(LLMAdapter):
     """Adapter for Google Gemini models (default for local dev)."""
 
-    def __init__(self, api_key: str, model: str = "gemini-2.0-flash"):
+    def __init__(self, api_key: str, model: str = "gemini-3.1-pro-preview"):
         if not api_key:
             raise ValueError(
                 "GEMINI_API_KEY is required. Set it in .env.local."
