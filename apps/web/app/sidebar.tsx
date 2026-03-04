@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: "/chat", label: "Live Chat" },
   { href: "/audit-log", label: "Audit Log" },
   { href: "/playground", label: "Playground" },
+  { href: "/demo", label: "Demo" },
 ];
 
 export function Sidebar() {
